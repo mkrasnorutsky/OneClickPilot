@@ -2,12 +2,14 @@
 """Build JSBSim behind a dynamic C ABI for the Unreal iOS migration."""
 # SPDX-License-Identifier: MIT
 from pathlib import Path
-import argparse,os,plistlib,shutil,subprocess,zipfile
+import argparse,hashlib,os,plistlib,shutil,subprocess,zipfile
 import sys
 ROOT=Path(__file__).resolve().parents[1]/'Unreal'
 STATE=Path.home()/'Library/Developer/OneClickPilot'
 SOURCE=ROOT.parent/'Dependencies/JSBSim'
 WORK=STATE/'UnrealFlightDynamics'
+# CMake caches record the absolute source path. Keep them separate per clone.
+CHECKOUT_KEY=hashlib.sha256(os.fsencode(SOURCE.resolve())).hexdigest()[:16]
 REVISION='66f7fafc07fe13e7ede9db20873030fed2881713'
 NAME='OneClickFlightDynamics'
 def run(*args):
@@ -21,7 +23,7 @@ def resources():
     for source,name in [(SOURCE/'COPYING','JSBSim-LGPL.txt'),(SOURCE/'src/GeographicLib/LICENSE.txt','GeographicLib-MIT.txt'),(SOURCE/'src/simgear/xml/COPYING','XML-COPYING.txt'),(ROOT/'FlightDynamics/LICENSE','Adapter-MIT.txt')]:shutil.copy2(source,notices/name)
     print('Staged the OneClickPilot model and JSBSim notices',flush=True)
 def build(label,sdk,arch,jobs):
-    build=WORK/'submodule-build'/label
+    build=WORK/'submodule-build'/CHECKOUT_KEY/label
     flags=['-DCMAKE_BUILD_TYPE=Release','-DBUILD_SHARED_LIBS=OFF','-DBUILD_PYTHON_MODULE=OFF','-DBUILD_DOCS=OFF','-DSKBUILD=ON','-DCMAKE_MACOSX_BUNDLE=OFF','-DCMAKE_OSX_SYSROOT='+sdk,'-DCMAKE_OSX_ARCHITECTURES='+arch,'-DCMAKE_OSX_DEPLOYMENT_TARGET='+('14.0' if sdk=='macosx' else '18.0')]
     if sdk!='macosx':flags+=['-DCMAKE_SYSTEM_NAME=iOS']
     run('cmake','-S',SOURCE,'-B',build,*flags)
