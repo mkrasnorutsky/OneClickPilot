@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<piston_engine name="Practice 320 cubic inch piston">
+  <displacement>320</displacement>
+  <maxhp>160</maxhp>
+  <cycles>4</cycles>
+  <idlerpm>700</idlerpm>
+  <maxrpm>2700</maxrpm>
+  <compression-ratio>8.5</compression-ratio>
+  <minmp>10</minmp>
+  <maxmp>29.5</maxmp>
+</piston_engine>

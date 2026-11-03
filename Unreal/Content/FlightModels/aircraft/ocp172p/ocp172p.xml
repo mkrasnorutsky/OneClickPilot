@@ -1,0 +1,343 @@
+<?xml version='1.0' encoding='utf-8'?>
+<fdm_config name="OneClickPilot C172P practice model" version="2.0" release="ALPHA">
+  <fileheader>
+    <author>OneClickPilot contributors</author>
+    <license licenseName="MIT" licenseURL="https://opensource.org/license/mit" />
+    <description>Approximate single-engine trainer model for OneClickPilot</description>
+  </fileheader>
+  <metrics>
+    <wingarea>174</wingarea>
+    <wingspan>36</wingspan>
+    <chord>4.83</chord>
+    <htailarea>23</htailarea>
+    <htailarm>14</htailarm>
+    <vtailarea>16</vtailarea>
+    <vtailarm>13</vtailarm>
+    <location name="AERORP" unit="IN">
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </location>
+    <location name="EYEPOINT" unit="IN">
+      <x>-12</x>
+      <y>-14</y>
+      <z>31</z>
+    </location>
+    <location name="VRP" unit="IN">
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </location>
+  </metrics>
+  <mass_balance>
+    <ixx>1050</ixx>
+    <iyy>1450</iyy>
+    <izz>2280</izz>
+    <emptywt>1680</emptywt>
+    <location name="CG" unit="IN">
+      <x>0</x>
+      <y>0</y>
+      <z>0</z>
+    </location>
+  </mass_balance>
+  <ground_reactions>
+    <contact type="BOGEY" name="Nose">
+      <location name="CONTACT" unit="IN">
+        <x>-49</x>
+        <y>0</y>
+        <z>-54</z>
+      </location>
+      <static_friction>0.79</static_friction>
+      <dynamic_friction>0.52</dynamic_friction>
+      <rolling_friction>0.021</rolling_friction>
+      <spring_coeff>2100</spring_coeff>
+      <damping_coeff>620</damping_coeff>
+      <max_steer>10</max_steer>
+      <brake_group>NONE</brake_group>
+      <retractable>0</retractable>
+    </contact>
+    <contact type="BOGEY" name="Left">
+      <location name="CONTACT" unit="IN">
+        <x>10</x>
+        <y>-52</y>
+        <z>-54</z>
+      </location>
+      <static_friction>0.79</static_friction>
+      <dynamic_friction>0.52</dynamic_friction>
+      <rolling_friction>0.021</rolling_friction>
+      <spring_coeff>3900</spring_coeff>
+      <damping_coeff>620</damping_coeff>
+      <max_steer>0</max_steer>
+      <brake_group>LEFT</brake_group>
+      <retractable>0</retractable>
+    </contact>
+    <contact type="BOGEY" name="Right">
+      <location name="CONTACT" unit="IN">
+        <x>10</x>
+        <y>52</y>
+        <z>-54</z>
+      </location>
+      <static_friction>0.79</static_friction>
+      <dynamic_friction>0.52</dynamic_friction>
+      <rolling_friction>0.021</rolling_friction>
+      <spring_coeff>3900</spring_coeff>
+      <damping_coeff>620</damping_coeff>
+      <max_steer>0</max_steer>
+      <brake_group>RIGHT</brake_group>
+      <retractable>0</retractable>
+    </contact>
+  </ground_reactions>
+  <propulsion>
+    <engine file="practice_piston">
+      <feed>0</feed>
+      <feed>1</feed>
+      <thruster file="practice_prop">
+        <location name="THRUSTER" unit="IN">
+          <x>-66</x>
+          <y>0</y>
+          <z>0</z>
+        </location>
+        <orient unit="DEG">
+          <roll>0</roll>
+          <pitch>0</pitch>
+          <yaw>0</yaw>
+        </orient>
+        <sense>1</sense>
+        <p_factor>2</p_factor>
+      </thruster>
+    </engine>
+    <tank type="FUEL" number="0">
+      <location name="TANK" unit="IN">
+        <x>0</x>
+        <y>-80</y>
+        <z>14</z>
+      </location>
+      <capacity>126</capacity>
+      <contents>126</contents>
+      <priority>1</priority>
+    </tank>
+    <tank type="FUEL" number="1">
+      <location name="TANK" unit="IN">
+        <x>0</x>
+        <y>80</y>
+        <z>14</z>
+      </location>
+      <capacity>126</capacity>
+      <contents>126</contents>
+      <priority>1</priority>
+    </tank>
+  </propulsion>
+  <flight_control name="Practice controls">
+    <channel name="Flaps">
+      <kinematic name="Flap actuator">
+        <input>fcs/flap-cmd-norm</input>
+        <traverse>
+          <setting>
+            <position>0</position>
+            <time>0</time>
+          </setting>
+          <setting>
+            <position>10</position>
+            <time>1.8</time>
+          </setting>
+          <setting>
+            <position>20</position>
+            <time>1.2</time>
+          </setting>
+          <setting>
+            <position>30</position>
+            <time>1.2</time>
+          </setting>
+        </traverse>
+        <output>fcs/flap-pos-deg</output>
+      </kinematic>
+      <pure_gain name="Flap fraction">
+        <input>fcs/flap-pos-deg</input>
+        <gain>0.03333333333333333</gain>
+        <output>fcs/flap-pos-norm</output>
+      </pure_gain>
+    </channel>
+  </flight_control>
+  <aerodynamics>
+    <axis name="LIFT">
+      <function name="aero/practice/wing-lift">
+        <product>
+          <property>aero/qbar-area</property>
+          <table>
+            <independentVar>aero/alpha-rad</independentVar>
+            <tableData>
+-0.6 -0.55
+-0.28 -0.85
+-0.06 0
+0 0.3
+0.2 1.28
+0.28 1.4
+0.43 0.82
+0.8 0.35
+</tableData>
+          </table>
+        </product>
+      </function>
+      <function name="aero/practice/flap-lift">
+        <product>
+          <property>aero/qbar-area</property>
+          <value>0.38</value>
+          <property>fcs/flap-pos-norm</property>
+        </product>
+      </function>
+    </axis>
+    <axis name="DRAG">
+      <function name="aero/practice/parasite-drag">
+        <product>
+          <property>aero/qbar-area</property>
+          <value>0.034</value>
+        </product>
+      </function>
+      <function name="aero/practice/induced-drag">
+        <product>
+          <property>aero/qbar-area</property>
+          <table>
+            <independentVar>aero/alpha-rad</independentVar>
+            <tableData>
+-0.6 0.28
+-0.3 0.06
+-0.06 0
+0 0.005
+0.15 0.06
+0.28 0.11
+0.5 0.34
+0.8 0.75
+</tableData>
+          </table>
+        </product>
+      </function>
+      <function name="aero/practice/flap-drag">
+        <product>
+          <property>aero/qbar-area</property>
+          <value>0.085</value>
+          <property>fcs/flap-pos-norm</property>
+        </product>
+      </function>
+    </axis>
+    <axis name="SIDE">
+      <function name="aero/practice/side-slip">
+        <product>
+          <property>aero/qbar-area</property>
+          <value>-0.34</value>
+          <property>aero/beta-rad</property>
+        </product>
+      </function>
+      <function name="aero/practice/rudder-side-force">
+        <product>
+          <property>aero/qbar-area</property>
+          <value>-0.06</value>
+          <property>fcs/rudder-cmd-norm</property>
+        </product>
+      </function>
+    </axis>
+    <axis name="ROLL">
+      <function name="aero/practice/dihedral">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/bw-ft</property>
+          <value>-0.079</value>
+          <property>aero/beta-rad</property>
+        </product>
+      </function>
+      <function name="aero/practice/roll-damping">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/bw-ft</property>
+          <value>-0.43</value>
+          <property>aero/bi2vel</property>
+          <property>velocities/p-aero-rad_sec</property>
+        </product>
+      </function>
+      <function name="aero/practice/aileron-authority">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/bw-ft</property>
+          <value>0.043</value>
+          <property>fcs/aileron-cmd-norm</property>
+        </product>
+      </function>
+    </axis>
+    <axis name="PITCH">
+      <function name="aero/practice/pitch-trim">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/cbarw-ft</property>
+          <value>0.035</value>
+        </product>
+      </function>
+      <function name="aero/practice/pitch-stability">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/cbarw-ft</property>
+          <value>-0.92</value>
+          <property>aero/alpha-rad</property>
+        </product>
+      </function>
+      <function name="aero/practice/pitch-damping">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/cbarw-ft</property>
+          <value>-9</value>
+          <property>aero/ci2vel</property>
+          <property>velocities/q-aero-rad_sec</property>
+        </product>
+      </function>
+      <function name="aero/practice/elevator-authority">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/cbarw-ft</property>
+          <value>-0.34</value>
+          <property>fcs/elevator-cmd-norm</property>
+        </product>
+      </function>
+      <function name="aero/practice/elevator-trim">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/cbarw-ft</property>
+          <value>-0.22</value>
+          <property>fcs/pitch-trim-cmd-norm</property>
+        </product>
+      </function>
+      <function name="aero/practice/flap-moment">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/cbarw-ft</property>
+          <value>-0.04</value>
+          <property>fcs/flap-pos-norm</property>
+        </product>
+      </function>
+    </axis>
+    <axis name="YAW">
+      <function name="aero/practice/directional-stability">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/bw-ft</property>
+          <value>0.085</value>
+          <property>aero/beta-rad</property>
+        </product>
+      </function>
+      <function name="aero/practice/yaw-damping">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/bw-ft</property>
+          <value>-0.13</value>
+          <property>aero/bi2vel</property>
+          <property>velocities/r-aero-rad_sec</property>
+        </product>
+      </function>
+      <function name="aero/practice/rudder-authority">
+        <product>
+          <property>aero/qbar-area</property>
+          <property>metrics/bw-ft</property>
+          <value>0.035</value>
+          <property>fcs/rudder-cmd-norm</property>
+        </product>
+      </function>
+    </axis>
+  </aerodynamics>
+</fdm_config>

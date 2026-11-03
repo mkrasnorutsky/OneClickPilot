@@ -1,0 +1,71 @@
+# macOS metadata and editor state
+.DS_Store
+._*
+*~
+*.swp
+*.swo
+
+# Personal Xcode state; shared projects, schemes and Package.resolved are tracked.
+xcuserdata/
+*.xcuserstate
+WorkspaceSettings.xcsettings
+IDEWorkspaceChecks.plist
+
+# Generated builds, package caches and reports
+/build/
+/device/
+/install/
+/packages/
+DerivedData/
+SourcePackages/
+.build/
+.swiftpm/
+__pycache__/
+*.py[cod]
+*.log
+*.o
+*.obj
+*.a
+*.d
+*.dylib
+*.so
+*.dSYM/
+*.app/
+*.ipa
+*.xcarchive/
+*.xcframework/
+*.xcresult/
+
+# Local resource snapshots and archives. Code/configuration in fgdata is
+# tracked explicitly with git add -f; its bulk assets remain local.
+/fgdata/
+/fgdata_full_checkout/
+/fgdata_min/
+/fgdata*.zip
+/fgdata*.tar
+/fgdata*.tar.gz
+/fgdata*.tgz
+
+# Local credentials and signing material; app entitlements remain trackable.
+.env
+.env.*
+!.env.example
+!.env.template
+*.p12
+*.pfx
+*.p8
+*.mobileprovision
+*.provisionprofile
+
+# Unreal-generated state and native binary staging (outside the source tree)
+/Unreal/Binaries
+/Unreal/Intermediate
+/Unreal/Saved
+/Unreal/DerivedDataCache
+/Unreal/ThirdParty/
+/Unreal/*.xcodeproj/
+/Unreal/*.xcworkspace/
+
+/Unreal/Build
+/Unreal/Content/Developers/
+/Unreal/Content/Collections/
