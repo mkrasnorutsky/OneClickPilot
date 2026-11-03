@@ -6,7 +6,7 @@ import argparse,os,plistlib,shutil,subprocess,zipfile
 import sys
 ROOT=Path(__file__).resolve().parents[1]/'Unreal'
 STATE=Path.home()/'Library/Developer/OneClickPilot'
-SOURCE=STATE/'source-repositories/jsbsim-upstream'
+SOURCE=ROOT.parent/'Dependencies/JSBSim'
 WORK=STATE/'UnrealFlightDynamics'
 REVISION='66f7fafc07fe13e7ede9db20873030fed2881713'
 NAME='OneClickFlightDynamics'
@@ -21,7 +21,7 @@ def resources():
     for source,name in [(SOURCE/'COPYING','JSBSim-LGPL.txt'),(SOURCE/'src/GeographicLib/LICENSE.txt','GeographicLib-MIT.txt'),(SOURCE/'src/simgear/xml/COPYING','XML-COPYING.txt'),(ROOT/'FlightDynamics/LICENSE','Adapter-MIT.txt')]:shutil.copy2(source,notices/name)
     print('Staged the OneClickPilot model and JSBSim notices',flush=True)
 def build(label,sdk,arch,jobs):
-    build=WORK/'build'/label
+    build=WORK/'submodule-build'/label
     flags=['-DCMAKE_BUILD_TYPE=Release','-DBUILD_SHARED_LIBS=OFF','-DBUILD_PYTHON_MODULE=OFF','-DBUILD_DOCS=OFF','-DSKBUILD=ON','-DCMAKE_MACOSX_BUNDLE=OFF','-DCMAKE_OSX_SYSROOT='+sdk,'-DCMAKE_OSX_ARCHITECTURES='+arch,'-DCMAKE_OSX_DEPLOYMENT_TARGET='+('14.0' if sdk=='macosx' else '18.0')]
     if sdk!='macosx':flags+=['-DCMAKE_SYSTEM_NAME=iOS']
     run('cmake','-S',SOURCE,'-B',build,*flags)
@@ -44,10 +44,11 @@ def merge(name,frameworks):
     return dest
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--host-only',action='store_true');p.add_argument('--jobs',type=int,default=8);a=p.parse_args()
-    if not (SOURCE/'.git').is_dir():
-        SOURCE.parent.mkdir(parents=True,exist_ok=True)
-        run('git','clone','--depth','1','--branch','v1.3.3','https://github.com/JSBSim-Team/jsbsim.git',SOURCE)
-    assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=SOURCE,text=True).strip()==REVISION
+    if not (SOURCE / 'CMakeLists.txt').is_file():
+        raise SystemExit('Initialize JSBSim with: git submodule update --init --recursive')
+    revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=SOURCE, text=True).strip()
+    if revision != REVISION:
+        raise SystemExit(f'Unexpected JSBSim revision {revision}. Run git submodule update --init.')
     resources()
     if a.host_only:
         build('mac-'+os.uname().machine,'macosx',os.uname().machine,a.jobs);return

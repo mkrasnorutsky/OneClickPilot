@@ -1,0 +1,3 @@
+[submodule "Dependencies/JSBSim"]
+	path = Dependencies/JSBSim
+	url = https://github.com/JSBSim-Team/jsbsim.git

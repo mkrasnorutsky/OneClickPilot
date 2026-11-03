@@ -15,9 +15,10 @@ This is the new iOS application under construction. UE5 provides rendering and l
 
 Install Unreal Engine 5.7.4 with iOS platform support through Epic Games Launcher.
 
-Maintenance scripts remain outside this Git repository at `../scripts` per the existing project convention:
+Build scripts are included in the repository. Clone with `--recurse-submodules` or initialize JSBSim before building:
 
 ```
+git submodule update --init --recursive
 python3 scripts/build_unreal_jsbsim.py
 python3 scripts/unreal_project.py preflight
 python3 scripts/unreal_project.py editor
