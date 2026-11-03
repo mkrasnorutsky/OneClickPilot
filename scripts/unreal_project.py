@@ -2,7 +2,8 @@
 """Prepare, build and cook the UE5 OneClickPilot migration (iOS product; Mac editor host)."""
 # SPDX-License-Identifier: MIT
 from pathlib import Path
-import argparse,json,os,subprocess
+import xml.etree.ElementTree as ET
+import argparse,json,os,re,subprocess
 BASE=Path(__file__).resolve().parents[1]
 PROJECT=BASE/'Unreal'
 STATE=Path.home()/'Library/Developer/OneClickPilot/Unreal-5.7.4'
@@ -40,6 +41,46 @@ def prepare():
         if not link.exists():link.symlink_to(destination,target_is_directory=True)
     for path in ['ThirdParty/IOS/OneClickFlightDynamics.embeddedframework.zip','ThirdParty/Simulator/OneClickFlightDynamics.embeddedframework.zip','ThirdParty/Mac/OneClickFlightDynamics.framework/OneClickFlightDynamics']:
         if not (PROJECT/path).exists():raise SystemExit('Missing native framework. Run build_unreal_jsbsim.py first.')
+def fix_xcode_paths():
+    # Xcode canonicalizes the project directory through our Intermediate symlink.
+    project_files = PROJECT / 'Intermediate/ProjectFiles'
+    physical = project_files.resolve()
+    if physical == project_files:
+        return
+
+    def rebase(match):
+        relative = match[2]
+        if (physical / relative).is_file():
+            return match[0]
+        target = Path(os.path.normpath(project_files / relative))
+        if not target.is_file():
+            return match[0]
+        return match[1] + os.path.relpath(target, physical)
+
+    for config in (project_files / 'XcconfigsMac').glob('*.xcconfig'):
+        text = config.read_text()
+        updated = re.sub(r'(?m)^((?:INFOPLIST_FILE|CODE_SIGN_ENTITLEMENTS) = )((?:\.\./)+[^\n]+)$', rebase, text)
+        if updated != text:
+            config.write_text(updated)
+
+def configure_mac_debug_scheme():
+    scheme = (PROJECT / 'Intermediate/ProjectFiles/OneClickPilotEditor (Mac).xcodeproj'
+              / 'xcshareddata/xcschemes/OneClickPilotEditor.xcscheme')
+    tree = ET.parse(scheme)
+    build = tree.find('BuildAction')
+    build.set('buildImplicitDependencies', 'NO')
+    launch = tree.find('LaunchAction')
+    launch.set('buildConfiguration', 'DebugGame')
+    args = launch.find('CommandLineArguments')
+    if args is None:
+        args = ET.SubElement(launch, 'CommandLineArguments')
+    existing = {entry.get('argument') for entry in args}
+    for argument in ('/Game/Maps/Practice', '-game', '-windowed', '-ResX=1280', '-ResY=960', '-nosound'):
+        if argument not in existing:
+            ET.SubElement(args, 'CommandLineArgument', argument=argument, isEnabled='YES')
+    ET.indent(tree)
+    tree.write(scheme, encoding='utf-8', xml_declaration=True)
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['preflight','generate','editor','assets','open','ios']);p.add_argument('--reuse-cooked',action='store_true');p.add_argument('--engine');p.add_argument('--simulator',action='store_true');a=p.parse_args()
     prepare();engine=engine_path(a.engine,allow_platform_update=a.action in ['editor','assets','generate','open'])
@@ -53,7 +94,10 @@ def main():
     editor=engine/'Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor'
     commandlet=engine/'Engine/Binaries/Mac/UnrealEditor-Cmd'
     if not commandlet.exists():commandlet=editor
-    if a.action=='generate':run(engine/'Engine/Build/BatchFiles/Mac/GenerateProjectFiles.sh','-project='+str(project),'-game')
+    if a.action=='generate':
+        run(engine/'Engine/Build/BatchFiles/Mac/GenerateProjectFiles.sh','-project='+str(project),'-game')
+        fix_xcode_paths()
+        configure_mac_debug_scheme()
     elif a.action=='editor':run(build,'OneClickPilotEditor','Mac','Development','-Project='+str(project),'-WaitMutex','-NoUBA')
     elif a.action=='assets':run(commandlet,project,'-unattended','-nop4','-nosplash','-run=pythonscript','-script='+str(PROJECT/'Editor/bootstrap.py'),'-stdout','-FullStdOutLogOutput')
     elif a.action=='open':run('open','-a',engine/'Engine/Binaries/Mac/UnrealEditor.app',project)

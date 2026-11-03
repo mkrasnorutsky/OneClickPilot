@@ -31,6 +31,20 @@ Run these from the repository root. An explicit engine installation can be suppl
 
 The project targets Unreal Engine 5.7.4. Its iOS Simulator target uses arm64. The JSBSim framework also provides x86_64 Simulator support for standalone backend tests.
 
+## Debug in Xcode on Mac
+
+After building the JSBSim framework, run `python3 scripts/unreal_project.py generate`
+from the repository root. Open `Unreal/OneClickPilot (Mac).xcworkspace`,
+select **OneClickPilotEditor** and **My Mac**, then click **Run** or press
+**Command-R**. The generated scheme builds DebugGame and starts the practice
+map with LLDB attached. Sound is disabled for this debug launch to avoid
+the editor preview-audio assertion on the Intel development Mac.
+
+Set a breakpoint in `AOneClickPilotPawn::BeginPlay()` to stop at startup.
+Close other OneClickPilot instances first so the Fly2Gether ports are free.
+When switching clones on the same Mac, regenerate the workspace from the
+clone you intend to debug because Unreal's generated state is shared.
+
 ## Validation and remaining work
 
 Tests/check_frameworks.py verifies dynamic linkage, architectures and the eight C exports. Tests/check_controls.py builds/runs the session under sanitizers and checks the actual JSBSim control values. Tests/check_flight_dynamics.py runs the real C ABI against the Mac framework: C172 loading, flight response, engine, ground contact, invalid input, timestep bounds and lifetime. Tests/framework_smoke.cpp links/runs the Simulator framework. Tests/headless_flight.cpp runs the exact transport/session used by the UE pawn; existing Fly2Gether protocol/control checks and direct JSBSim control-property checks pass under ASan/UBSan.
