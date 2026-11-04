@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "HAL/FileManager.h"
@@ -131,6 +132,24 @@ AOneClickPilotPawn::AOneClickPilotPawn(){
 void AOneClickPilotPawn::BeginPlay(){
     Super::BeginPlay();
     BaseCockpitRotation = CockpitCamera->GetRelativeRotation();
+    const auto* AirframeMesh = FindComponentByClass<USkeletalMeshComponent>();
+    const bool bImportedCockpit = AirframeMesh &&
+        AirframeMesh->ComponentHasTag(TEXT("OneClickPilot.ImportedCockpit"));
+    if (bImportedCockpit)
+        CockpitCamera->SetRelativeLocation(FVector(-43, -27, 61));
+    if (bImportedCockpit) {
+        TArray<UStaticMeshComponent*> Meshes;
+        GetComponents(Meshes);
+        for (auto* Mesh : Meshes) {
+            const FString Name = Mesh->GetName();
+            if (Name.StartsWith(TEXT("Panel")) || Name.StartsWith(TEXT("Gauge")) ||
+                Name.StartsWith(TEXT("Needle")) || Name.StartsWith(TEXT("VerticalSpeedMark")) ||
+                Name.StartsWith(TEXT("AttitudeReference")) || Name.StartsWith(TEXT("HeadingBug")) ||
+                Name.StartsWith(TEXT("Flap")) || Name.StartsWith(TEXT("FuelBar")) ||
+                Name.StartsWith(TEXT("AlternatorWarning")))
+                Mesh->SetHiddenInGame(true);
+        }
+    }
     auto* LampMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_AircraftLamp.M_AircraftLamp"));
     if (LampMaterial) {
         auto SetLampColor = [this, LampMaterial](UStaticMeshComponent* Lamp, FLinearColor Color) {

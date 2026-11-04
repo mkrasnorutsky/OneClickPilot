@@ -1,0 +1,5 @@
+FREE Cessna 172SP by NLM
+https://sketchfab.com/3d-models/free-cessna-172sp-be55bf96a63b41fdb953b6829ff0d4bf
+Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Changes: imported the Sketchfab 2K GLB into Unreal Engine.

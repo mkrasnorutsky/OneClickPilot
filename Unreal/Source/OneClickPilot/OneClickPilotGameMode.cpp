@@ -21,15 +21,14 @@
 #include "Components/SkyLightComponent.h"
 #include "Materials/MaterialInterface.h"
 AOneClickPilotGameMode::AOneClickPilotGameMode(){
-    DefaultPawnClass = AOneClickPilotPawn::StaticClass();
+    static ConstructorHelpers::FClassFinder<AOneClickPilotPawn> Cockpit(
+        TEXT("/Game/Aircraft/NLM172SP/BP_Cessna172SP"));
+    DefaultPawnClass = Cockpit.Class ? Cockpit.Class.Get() : AOneClickPilotPawn::StaticClass();
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     SkyMesh=Sphere.Object;
 }
 void AOneClickPilotGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
-    const FSoftClassPath Cockpit(TEXT("/Game/Aircraft/BP_OneClickPilotCockpit.BP_OneClickPilotCockpit_C"));
-    if (UClass* CockpitClass = Cockpit.TryLoadClass<AOneClickPilotPawn>())
-        DefaultPawnClass = CockpitClass;
     Super::InitGame(MapName, Options, ErrorMessage);
 }
 void AOneClickPilotGameMode::BeginPlay(){
