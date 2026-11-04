@@ -21,6 +21,7 @@ AOneClickPilotPawn::AOneClickPilotPawn(){
     RootComponent=CreateDefaultSubobject<USceneComponent>(TEXT("Airframe"));
     CockpitCamera=CreateDefaultSubobject<UCameraComponent>(TEXT("CockpitCamera"));
     CockpitCamera->SetupAttachment(RootComponent);CockpitCamera->SetRelativeLocation(FVector(-50,-20,80));CockpitCamera->FieldOfView=75;
+    CockpitCamera->SetRelativeRotation(FRotator(-5, 0, 0));
     AutoPossessPlayer=EAutoReceiveInput::Player0;
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -129,6 +130,7 @@ AOneClickPilotPawn::AOneClickPilotPawn(){
 }
 void AOneClickPilotPawn::BeginPlay(){
     Super::BeginPlay();
+    BaseCockpitRotation = CockpitCamera->GetRelativeRotation();
     auto* LampMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_AircraftLamp.M_AircraftLamp"));
     if (LampMaterial) {
         auto SetLampColor = [this, LampMaterial](UStaticMeshComponent* Lamp, FLinearColor Color) {
@@ -185,7 +187,7 @@ void AOneClickPilotPawn::Tick(float Seconds){
                P.getDoubleValue("/controls/flight/rudder"));
     }
 #endif
-    CockpitCamera->SetRelativeRotation(FRotator(-5+P.getDoubleValue("/sim/current-view/pitch-offset-deg"),P.getDoubleValue("/sim/current-view/heading-offset-deg"),P.getDoubleValue("/sim/current-view/roll-offset-deg")));
+    CockpitCamera->SetRelativeRotation(BaseCockpitRotation + FRotator(P.getDoubleValue("/sim/current-view/pitch-offset-deg"),P.getDoubleValue("/sim/current-view/heading-offset-deg"),P.getDoubleValue("/sim/current-view/roll-offset-deg")));
     const double IndicatedAltitude = Flight->properties.getDoubleValue("/instrumentation/altimeter/indicated-altitude-ft");
     const double VerticalSpeed = P.getDoubleValue("/instrumentation/vertical-speed-indicator/indicated-speed-fpm");
     const double VerticalSpeedAngle = FMath::Clamp(VerticalSpeed / 2000, -1.0, 1.0) * 90;

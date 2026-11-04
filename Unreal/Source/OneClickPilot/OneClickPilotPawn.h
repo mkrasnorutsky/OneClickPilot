@@ -17,7 +17,8 @@ public:
     void Tick(float Seconds) override;
     void EndPlay(const EEndPlayReason::Type Reason) override;
 private:
-    UPROPERTY() TObjectPtr<UCameraComponent> CockpitCamera;
+    UPROPERTY(VisibleAnywhere, Category="Cockpit") TObjectPtr<UCameraComponent> CockpitCamera;
+    FRotator BaseCockpitRotation = FRotator::ZeroRotator;
     UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> Needles;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> HeadingBug;
     UPROPERTY() TObjectPtr<UStaticMeshComponent> FlapIndicator;

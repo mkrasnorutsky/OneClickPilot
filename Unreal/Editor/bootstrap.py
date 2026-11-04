@@ -101,6 +101,15 @@ if not unreal.EditorAssetLibrary.does_asset_exist('/Game/Materials/M_AircraftLam
     unreal.MaterialEditingLibrary.connect_material_property(parameter, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     unreal.MaterialEditingLibrary.recompile_material(material)
     unreal.EditorAssetLibrary.save_asset('/Game/Materials/M_AircraftLamp')
+cockpit_path = '/Game/Aircraft/BP_OneClickPilotCockpit'
+if not unreal.EditorAssetLibrary.does_asset_exist(cockpit_path):
+    unreal.EditorAssetLibrary.make_directory('/Game/Aircraft')
+    factory = unreal.BlueprintFactory()
+    factory.set_editor_property('parent_class', unreal.OneClickPilotPawn.static_class())
+    cockpit = assets.create_asset('BP_OneClickPilotCockpit', '/Game/Aircraft', unreal.Blueprint, factory)
+    if cockpit is None or not unreal.EditorAssetLibrary.save_loaded_asset(cockpit):
+        raise RuntimeError('Could not create the cockpit Blueprint')
+
 if not unreal.EditorAssetLibrary.does_asset_exist('/Game/Maps/Practice'):
     world=unreal.EditorLoadingAndSavingUtils.new_blank_map(False)
     unreal.EditorLoadingAndSavingUtils.save_map(world,'/Game/Maps/Practice')

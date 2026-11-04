@@ -2,6 +2,7 @@
 #include "OneClickPilotGameMode.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Camera/CameraActor.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/CommandLine.h"
@@ -20,25 +21,80 @@
 #include "Components/SkyLightComponent.h"
 #include "Materials/MaterialInterface.h"
 AOneClickPilotGameMode::AOneClickPilotGameMode(){
-    DefaultPawnClass=AOneClickPilotPawn::StaticClass();
+    DefaultPawnClass = AOneClickPilotPawn::StaticClass();
     static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
     SkyMesh=Sphere.Object;
 }
+void AOneClickPilotGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+    const FSoftClassPath Cockpit(TEXT("/Game/Aircraft/BP_OneClickPilotCockpit.BP_OneClickPilotCockpit_C"));
+    if (UClass* CockpitClass = Cockpit.TryLoadClass<AOneClickPilotPawn>())
+        DefaultPawnClass = CockpitClass;
+    Super::InitGame(MapName, Options, ErrorMessage);
+}
 void AOneClickPilotGameMode::BeginPlay(){
     Super::BeginPlay();
+    bool HasBakedScenery = false;
+    for (TActorIterator<AActor> Actor(GetWorld()); Actor; ++Actor) {
+        if (Actor->ActorHasTag(TEXT("OneClickPilot.BakedScenery"))) {
+            HasBakedScenery = true;
+            break;
+        }
+    }
+    if (!HasBakedScenery)
+        BuildPracticeScenery(GetWorld());
+
+    if (FParse::Param(FCommandLine::Get(), TEXT("OneClickSceneryPreview"))) {
+        const FVector Location(-190000, -55000, 68000);
+        const FVector LookAt(-52000, 65000, 0);
+        auto* Camera = GetWorld()->SpawnActor<ACameraActor>(Location, (LookAt - Location).Rotation());
+        GetWorldTimerManager().SetTimerForNextTick([this, Camera]() {
+            if (auto* Controller = GetWorld()->GetFirstPlayerController())
+                Controller->SetViewTarget(Camera);
+        });
+    }
+
+}
+
+bool AOneClickPilotGameMode::BakePracticeScenery(UObject* WorldContext)
+{
+#if WITH_EDITOR
+    UWorld* World = Cast<UWorld>(WorldContext);
+    if (!World || World->WorldType != EWorldType::Editor)
+        return false;
+    for (TActorIterator<AActor> Actor(World); Actor; ++Actor) {
+        if (Actor->ActorHasTag(TEXT("OneClickPilot.BakedScenery")))
+            return false;
+    }
+    GetDefault<AOneClickPilotGameMode>()->BuildPracticeScenery(World);
+    World->MarkPackageDirty();
+    return true;
+#else
+    return false;
+#endif
+}
+
+void AOneClickPilotGameMode::BuildPracticeScenery(UWorld* World) const
+{
     auto Cube=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube"));
-    auto Box=[&](FVector Location,FVector Scale,FRotator Rotation,const TCHAR* Material){
-        auto Actor=GetWorld()->SpawnActor<AStaticMeshActor>(Location,Rotation);
+    auto Box=[&](FVector Location,FVector Scale,FRotator Rotation,const TCHAR* Material, const TCHAR* Label = TEXT("Scenery detail")){
+        auto Actor=World->SpawnActor<AStaticMeshActor>(Location,Rotation);
         Actor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
         Actor->GetStaticMeshComponent()->SetStaticMesh(Cube);
         Actor->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Actor->GetStaticMeshComponent()->SetMaterial(0,LoadObject<UMaterialInterface>(nullptr,Material));
         Actor->SetActorScale3D(Scale);
+#if WITH_EDITOR
+        if (World->WorldType == EWorldType::Editor) {
+            Actor->SetActorLabel(Label);
+            Actor->SetFolderPath(TEXT("Practice Scenery"));
+        }
+#endif
     };
-    Box(FVector(0,0,-50),FVector(74080,74080,1),FRotator::ZeroRotator,TEXT("/Game/Materials/M_CoastalGrass.M_CoastalGrass"));
+    Box(FVector(0,0,-50),FVector(74080,74080,1),FRotator::ZeroRotator,TEXT("/Game/Materials/M_CoastalGrass.M_CoastalGrass"), TEXT("Airfield ground"));
     const FRotator RunwayRotation(0,20,0);
     const FVector Forward=RunwayRotation.Vector();
-    Box(Forward*51800+FVector(0,0,4),FVector(1036,18,.02),RunwayRotation,TEXT("/Game/Materials/M_Runway.M_Runway"));
+    Box(Forward*51800+FVector(0,0,4),FVector(1036,18,.02),RunwayRotation,TEXT("/Game/Materials/M_Runway.M_Runway"), TEXT("Runway 02–20"));
     for(int i=1;i<25;++i)Box(Forward*(i*4000)+FVector(0,0,9),FVector(20,.4,.02),RunwayRotation,TEXT("/Game/Materials/M_White.M_White"));
     // Approximate Shoreham landmarks in runway-relative metres.
     const FVector Right = RunwayRotation.RotateVector(FVector::RightVector);
@@ -76,15 +132,23 @@ void AOneClickPilotGameMode::BeginPlay(){
     Place(165, 26.25, 4.8, FVector(.65, 2.5, .55), TEXT("/Game/Materials/M_Windsock.M_Windsock"));
 
     // Coast to the south and the Adur to the east make the airfield easier to locate.
-    Box(FVector(-2070000, 0, 12), FVector(38600, 76000, .02), FRotator::ZeroRotator, Water);
+    Box(FVector(-2070000, 0, 12), FVector(38600, 76000, .02), FRotator::ZeroRotator, Water, TEXT("Coastal water"));
     Box(FVector(-26000, 46000, 150), FVector(9, 65, 3), FRotator::ZeroRotator, Asphalt);
     for (double North : {160000.0, 250000.0, 335000.0})
         Box(FVector(North, -48000, 1), FVector(630, 550, .02), FRotator(0, 12, 0),
             TEXT("/Game/Materials/M_Field.M_Field"));
 
     // Group repeated town geometry by mesh and material for the mobile renderer.
-    auto* Town = GetWorld()->SpawnActor<AActor>();
-    auto* TownRoot = NewObject<USceneComponent>(Town);
+    auto* Town = World->SpawnActor<AActor>();
+#if WITH_EDITOR
+    if (World->WorldType == EWorldType::Editor) {
+        Town->Tags.Add(TEXT("OneClickPilot.BakedScenery"));
+        Town->SetActorLabel(TEXT("Town, river and terrain"));
+        Town->SetFolderPath(TEXT("Practice Scenery"));
+    }
+#endif
+    auto* TownRoot = NewObject<USceneComponent>(Town, TEXT("SceneryRoot"), RF_Transactional);
+    Town->AddInstanceComponent(TownRoot);
     Town->SetRootComponent(TownRoot);
     TownRoot->RegisterComponent();
     // Follow a smooth, variable-width river through the floodplain.
@@ -101,7 +165,7 @@ void AOneClickPilotGameMode::BeginPlay(){
         return FMath::CubicInterp(Start, (End - Before) * .5, End, (After - Start) * .5, T);
     };
     auto RiverSurface = [&](double LeftSign, double LeftOffset, double RightSign, double RightOffset, double Height, const TCHAR* Material) {
-        auto* Mesh = NewObject<UProceduralMeshComponent>(Town);
+        auto* Mesh = NewObject<UProceduralMeshComponent>(Town, NAME_None, RF_Transactional);
         Town->AddInstanceComponent(Mesh);
         Mesh->SetupAttachment(TownRoot);
         Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -139,7 +203,7 @@ void AOneClickPilotGameMode::BeginPlay(){
     RiverSurface(-1, 0, 1, 0, .12, Water);
 
     auto Batch = [Town](UStaticMesh* Mesh, const TCHAR* Material) {
-        auto* Instances = NewObject<UInstancedStaticMeshComponent>(Town);
+        auto* Instances = NewObject<UInstancedStaticMeshComponent>(Town, NAME_None, RF_Transactional);
         Town->AddInstanceComponent(Instances);
         Instances->SetupAttachment(Town->GetRootComponent());
         Instances->SetStaticMesh(Mesh);
@@ -288,7 +352,7 @@ void AOneClickPilotGameMode::BeginPlay(){
         const double Detail = FMath::PerlinNoise2D(FVector2D(North, East) / 290);
         return -2 + Envelope * (55 + 125 * FMath::Square(Noise + .6) + 18 * Detail);
     };
-    auto* Ridge = NewObject<UProceduralMeshComponent>(Town);
+    auto* Ridge = NewObject<UProceduralMeshComponent>(Town, NAME_None, RF_Transactional);
     Town->AddInstanceComponent(Ridge);
     Ridge->SetupAttachment(TownRoot);
     Ridge->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -343,31 +407,21 @@ void AOneClickPilotGameMode::BeginPlay(){
         }
     }
 
-    if (FParse::Param(FCommandLine::Get(), TEXT("OneClickSceneryPreview"))) {
-        const FVector Location(-190000, -55000, 68000);
-        const FVector LookAt(-52000, 65000, 0);
-        auto* Camera = GetWorld()->SpawnActor<ACameraActor>(Location, (LookAt - Location).Rotation());
-        GetWorldTimerManager().SetTimerForNextTick([this, Camera]() {
-            if (auto* Controller = GetWorld()->GetFirstPlayerController())
-                Controller->SetViewTarget(Camera);
-        });
-    }
-
-    auto Sun=GetWorld()->SpawnActor<ADirectionalLight>(FVector::ZeroVector,FRotator(-35,-45,0));
+    auto Sun=World->SpawnActor<ADirectionalLight>(FVector::ZeroVector,FRotator(-35,-45,0));
     Sun->GetLightComponent()->SetIntensity(3.2f);
     Sun->GetLightComponent()->SetLightColor(FLinearColor(1, .91f, .79f));
-    auto* Haze = GetWorld()->SpawnActor<AExponentialHeightFog>();
+    auto* Haze = World->SpawnActor<AExponentialHeightFog>();
     auto* Fog = Haze->GetComponent();
     Fog->SetFogDensity(.012f);
     Fog->SetFogHeightFalloff(.23f);
     Fog->SetStartDistance(35000);
     Fog->SetFogInscatteringColor(FLinearColor(.42f, .59f, .70f));
-    auto Dome=GetWorld()->SpawnActor<AStaticMeshActor>();
+    auto Dome=World->SpawnActor<AStaticMeshActor>();
     Dome->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
     Dome->GetStaticMeshComponent()->SetStaticMesh(SkyMesh);
     Dome->GetStaticMeshComponent()->SetMaterial(0,LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/Materials/M_Sky.M_Sky")));
     Dome->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Dome->GetStaticMeshComponent()->SetCastShadow(false);
     Dome->SetActorScale3D(FVector(200000));
-    auto Sky=GetWorld()->SpawnActor<ASkyLight>();Sky->GetLightComponent()->SetIntensity(.48f);Sky->GetLightComponent()->RecaptureSky();
+    auto Sky=World->SpawnActor<ASkyLight>();Sky->GetLightComponent()->SetIntensity(.48f);Sky->GetLightComponent()->RecaptureSky();
 }

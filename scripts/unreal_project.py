@@ -84,15 +84,18 @@ def configure_mac_debug_scheme():
     args = launch.find('CommandLineArguments')
     if args is None:
         args = ET.SubElement(launch, 'CommandLineArguments')
+    for entry in args.findall('CommandLineArgument'):
+        if entry.get('argument') == '/Game/Maps/Practice':
+            args.remove(entry)
     existing = {entry.get('argument') for entry in args}
-    for argument in ('/Game/Maps/Practice', '-game', '-windowed', '-ResX=1280', '-ResY=960', '-nosound'):
+    for argument in ('/Game/Maps/Practice_Editable', '-game', '-windowed', '-ResX=1280', '-ResY=960', '-nosound'):
         if argument not in existing:
             ET.SubElement(args, 'CommandLineArgument', argument=argument, isEnabled='YES')
     ET.indent(tree)
     tree.write(scheme, encoding='utf-8', xml_declaration=True)
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['preflight','generate','editor','assets','open','ios']);p.add_argument('--reuse-cooked',action='store_true');p.add_argument('--engine');p.add_argument('--simulator',action='store_true');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['preflight','generate','editor','assets','bake','open','ios']);p.add_argument('--reuse-cooked',action='store_true');p.add_argument('--engine');p.add_argument('--simulator',action='store_true');a=p.parse_args()
     prepare();engine=engine_path(a.engine,allow_platform_update=a.action in ['editor','assets','generate','open'])
     version=json.loads((engine/'Engine/Build/Build.version').read_text())
     if tuple(version[key] for key in ('MajorVersion','MinorVersion','PatchVersion'))!=(5,7,4):
@@ -109,7 +112,9 @@ def main():
         fix_xcode_paths()
         configure_mac_debug_scheme()
     elif a.action=='editor':run(build,'OneClickPilotEditor','Mac','Development','-Project='+str(project),'-WaitMutex','-NoUBA')
-    elif a.action=='assets':run(commandlet,project,'-unattended','-nop4','-nosplash','-run=pythonscript','-script='+str(PROJECT/'Editor/bootstrap.py'),'-stdout','-FullStdOutLogOutput')
+    elif a.action in ('assets', 'bake'):
+        script = 'bootstrap.py' if a.action == 'assets' else 'bake_practice.py'
+        run(commandlet,project,'-unattended','-nop4','-nosplash','-run=pythonscript','-script='+str(PROJECT/'Editor'/script),'-stdout','-FullStdOutLogOutput')
     elif a.action=='open':run('open','-a',engine/'Engine/Binaries/Mac/UnrealEditor.app',project)
     elif a.action=='ios':
         env=os.environ.copy()
