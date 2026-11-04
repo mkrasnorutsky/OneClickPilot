@@ -64,8 +64,10 @@ def fix_xcode_paths():
             config.write_text(updated)
 
     # The same symlink also affects the source references used by Xcode search.
-    for name in ('OneClickPilot', 'OneClickPilotEditor'):
-        project = project_files / f'{name} (Mac).xcodeproj/project.pbxproj'
+    for target in ('OneClickPilot (Mac)', 'OneClickPilotEditor (Mac)', 'OneClickPilot (IOS)'):
+        project = project_files / f'{target}.xcodeproj/project.pbxproj'
+        if not project.is_file():
+            continue
         text = project.read_text()
         updated = re.sub(r'(path = ")((?:\.\./)+[^"]+)(?="; sourceTree = SOURCE_ROOT;)', rebase, text)
         if updated != text:
