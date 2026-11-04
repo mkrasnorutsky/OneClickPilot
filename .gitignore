@@ -69,3 +69,7 @@ __pycache__/
 /Unreal/Build
 /Unreal/Content/Developers/
 /Unreal/Content/Collections/
+
+# Rural Australia is installed locally from Fab.
+/Unreal/Content/RuralAustralia/
+/Unreal/Content/Maps/Practice_AustralianAirfield.umap

@@ -4,6 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "OneClickPilotGameMode.generated.h"
 class UStaticMesh;
+class ULevelStreamingDynamic;
 UCLASS()
 class ONECLICKPILOT_API AOneClickPilotGameMode : public AGameModeBase {
     GENERATED_BODY()
@@ -14,6 +15,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="OneClickPilot|Editor")
     static bool BakePracticeScenery(UObject* WorldContext);
 private:
+    void UpdateRuralTiles();
+    TMap<FIntPoint, TWeakObjectPtr<ULevelStreamingDynamic>> RuralTiles;
+    FTimerHandle RuralTileTimer;
     void BuildPracticeScenery(UWorld* World) const;
     UPROPERTY() TObjectPtr<UStaticMesh> SkyMesh;
 };

@@ -2,6 +2,8 @@
 #include "OneClickPilotGameMode.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Engine/LevelStreamingDynamic.h"
+#include "Misc/PackageName.h"
 #include "EngineUtils.h"
 #include "Camera/CameraActor.h"
 #include "GameFramework/PlayerController.h"
@@ -43,6 +45,12 @@ void AOneClickPilotGameMode::BeginPlay(){
     if (!HasBakedScenery)
         BuildPracticeScenery(GetWorld());
 
+    const FString MapName = GetWorld()->GetMapName();
+    if (MapName.EndsWith(TEXT("Practice_AustralianAirfield")) &&
+        FPackageName::DoesPackageExist(TEXT("/Game/RuralAustralia/Maps/RuralAustralia_Tile"))) {
+        GetWorldTimerManager().SetTimer(RuralTileTimer, this, &AOneClickPilotGameMode::UpdateRuralTiles, 0.5f, true, 0.0f);
+    }
+
     if (FParse::Param(FCommandLine::Get(), TEXT("OneClickSceneryPreview"))) {
         const FVector Location(-190000, -55000, 68000);
         const FVector LookAt(-52000, 65000, 0);
@@ -53,6 +61,56 @@ void AOneClickPilotGameMode::BeginPlay(){
         });
     }
 
+}
+
+void AOneClickPilotGameMode::UpdateRuralTiles()
+{
+    const auto* Controller = GetWorld()->GetFirstPlayerController();
+    const APawn* Aircraft = Controller ? Controller->GetPawn() : nullptr;
+    if (!Aircraft)
+        return;
+
+    constexpr double TileSize = 102000.0; // Demo landscape width in centimetres.
+    constexpr double HalfTile = TileSize / 2.0;
+    const FVector Anchor(65000.0, 92500.0, 110.0);
+    const FVector Relative = (Aircraft->GetActorLocation() - Anchor) / TileSize;
+    const FIntPoint Center(FMath::RoundToInt(Relative.X), FMath::RoundToInt(Relative.Y));
+    for (auto It = RuralTiles.CreateIterator(); It; ++It) {
+        const FIntPoint Offset = It.Key() - Center;
+        if (FMath::Abs(Offset.X) <= 1 && FMath::Abs(Offset.Y) <= 1)
+            continue;
+        if (auto* Level = It.Value().Get())
+            Level->SetIsRequestingUnloadAndRemoval(true);
+        It.RemoveCurrent();
+    }
+
+    for (int32 North = Center.X - 1; North <= Center.X + 1; ++North) {
+        for (int32 East = Center.Y - 1; East <= Center.Y + 1; ++East) {
+            const FIntPoint Cell(North, East);
+            if (FMath::Abs(North) > 32 || FMath::Abs(East) > 32 ||
+                Cell == FIntPoint::ZeroValue || RuralTiles.Contains(Cell))
+                continue;
+
+            const FVector Position = Anchor + FVector(North * TileSize, East * TileSize, 0.0);
+            // Leave the runway, apron and both straight-in approaches clear.
+            const FVector RunwayForward = FRotator(0, 20, 0).Vector();
+            const FVector RunwayRight(-RunwayForward.Y, RunwayForward.X, 0.0);
+            const double Along = FVector::DotProduct(Position, RunwayForward);
+            const double Across = FVector::DotProduct(Position, RunwayRight);
+            const double ProjectedHalfTile = HalfTile * (RunwayForward.X + RunwayForward.Y);
+            if (FMath::Abs(Along - 51800.0) < ProjectedHalfTile + 108000.0 &&
+                FMath::Abs(Across) < ProjectedHalfTile + 16500.0)
+                continue;
+
+            FRandomStream Random(HashCombineFast(GetTypeHash(North), GetTypeHash(East)));
+            const FRotator Rotation(0.0, 90.0 * Random.RandRange(0, 3), 0.0);
+            bool bLoaded = false;
+            auto* Level = ULevelStreamingDynamic::LoadLevelInstance(
+                this, TEXT("/Game/RuralAustralia/Maps/RuralAustralia_Tile"), Position, Rotation, bLoaded);
+            if (bLoaded)
+                RuralTiles.Add(Cell, Level);
+        }
+    }
 }
 
 bool AOneClickPilotGameMode::BakePracticeScenery(UObject* WorldContext)
