@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 OneClickPilot contributors
 #pragma once
-#include "PropertyStore.h"
+#include "ControlMixer.hpp"
 #include <functional>
 #include <memory>
 #include <string>
 class OneClickTransport final {
 public:
     using Command=std::function<bool(const std::string&)>;
-    OneClickTransport(ocp::PropertyStore*,Command);
+    OneClickTransport(ocp::ControlMixer*,Command);
     ~OneClickTransport();
     void init();
     void update(double);

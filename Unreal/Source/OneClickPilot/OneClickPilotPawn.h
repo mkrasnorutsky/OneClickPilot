@@ -34,5 +34,6 @@ private:
     std::unique_ptr<ocp::FlightSession> Flight;
     void* FlightLibrary=nullptr;
     uint64 DiagnosticFrames=0;
+    double NextInstructorTraceTime = 0.0;
     bool bDiagnostics=false;
 };

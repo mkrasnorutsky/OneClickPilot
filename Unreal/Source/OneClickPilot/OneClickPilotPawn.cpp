@@ -171,6 +171,20 @@ void AOneClickPilotPawn::Tick(float Seconds){
     const double East=(S.longitude_deg+.29991299)*Radians*6378137.0*std::cos(50.83138094*Radians);
     SetActorLocationAndRotation(FVector(North*100,East*100,(S.altitude_ft-7)*30.48),FRotator(S.pitch_deg,S.heading_deg,S.roll_deg));
     auto& P=Flight->properties;
+#if !UE_BUILD_SHIPPING
+    const auto Phase = Flight->instructorPhase();
+    if (Phase != ocp::CircuitInstructor::Phase::WaitingForBrakeRelease &&
+        S.elapsed_seconds >= NextInstructorTraceTime) {
+        NextInstructorTraceTime = S.elapsed_seconds + .5;
+        UE_LOG(LogTemp, Display, TEXT("InstructorTrack t=%.2f phase=%d lat=%.8f lon=%.8f alt_ft=%.2f ias_kt=%.2f heading=%.2f pitch=%.2f bank=%.2f vsi_fps=%.2f throttle=%.3f elevator=%.3f aileron=%.3f rudder=%.3f"),
+               S.elapsed_seconds, static_cast<int>(Phase), S.latitude_deg, S.longitude_deg,
+               S.altitude_ft, S.airspeed_kts, S.heading_deg, S.pitch_deg, S.roll_deg, S.vertical_speed_fps,
+               P.getDoubleValue("/controls/engines/current-engine/throttle"),
+               P.getDoubleValue("/controls/flight/elevator"),
+               P.getDoubleValue("/controls/flight/aileron"),
+               P.getDoubleValue("/controls/flight/rudder"));
+    }
+#endif
     CockpitCamera->SetRelativeRotation(FRotator(-5+P.getDoubleValue("/sim/current-view/pitch-offset-deg"),P.getDoubleValue("/sim/current-view/heading-offset-deg"),P.getDoubleValue("/sim/current-view/roll-offset-deg")));
     const double IndicatedAltitude = Flight->properties.getDoubleValue("/instrumentation/altimeter/indicated-altitude-ft");
     const double VerticalSpeed = P.getDoubleValue("/instrumentation/vertical-speed-indicator/indicated-speed-fpm");

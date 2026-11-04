@@ -3,14 +3,27 @@
 #include "FlightSession.h"
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <stdexcept>
 namespace ocp {
-FlightSession::FlightSession(FlightAPI functions):api(functions),transport(&properties,[this](const std::string& name){return command(name);}) {}
+namespace {
+void validateFlightState(const OCPFlightState& state) {
+    const double values[] = {
+        state.latitude_deg, state.longitude_deg, state.altitude_ft,
+        state.roll_deg, state.pitch_deg, state.heading_deg, state.airspeed_kts,
+        state.vertical_speed_fps, state.rpm, state.elapsed_seconds
+    };
+    if (!std::all_of(std::begin(values), std::end(values), [](double value) { return std::isfinite(value); }))
+        throw std::runtime_error("JSBSim returned non-finite aircraft state");
+}
+}
+FlightSession::FlightSession(FlightAPI functions):mixer(&properties),api(functions),transport(&mixer,[this](const std::string& name){return command(name);}) {}
 FlightSession::~FlightSession(){stop();}
 void FlightSession::start(const std::string& resources,bool airborne) {
     stop();
     if(!api.valid())throw std::runtime_error("Invalid JSBSim framework ABI");
     properties=PropertyStore{};
+    instructor.reset();
     state={};state.size=sizeof state;
     for(const char* p:{"/controls/switches/master-bat","/controls/switches/master-alt","/controls/switches/master-avionics","/controls/gear/gear-down","/consumables/fuel/tank[0]/selected","/consumables/fuel/tank[1]/selected"})properties.setBoolValue(p,true);
     for(const char* path:{"/controls/flight/aileron","/controls/flight/elevator","/controls/flight/rudder","/controls/flight/elevator-trim","/controls/flight/flaps","/controls/gear/brake-left","/controls/gear/brake-right","/controls/switches/starter","/controls/lighting/landing-lights","/controls/lighting/taxi-light","/controls/lighting/nav-lights","/controls/lighting/beacon","/controls/lighting/strobe","/controls/anti-ice/pitot-heat","/controls/engines/current-engine/carb-heat","/controls/engines/active-engine","/fdm/jsbsim/fuel/tank","/sim/current-view/heading-offset-deg","/sim/current-view/pitch-offset-deg","/sim/current-view/roll-offset-deg","/sim/fly2gether/received-packets","/sim/fly2gether/rejected-packets","/sim/fly2gether/custom-received"})properties.setDoubleValue(path,0);
@@ -32,6 +45,7 @@ void FlightSession::start(const std::string& resources,bool airborne) {
     if(!flight)throw std::runtime_error(error);
     try{transport.init();}catch(...){api.destroy(flight);flight=nullptr;throw;}
     if(!api.state(flight,&state))throw std::runtime_error(api.error(flight));
+    validateFlightState(state);
     properties.setDoubleValue("/autopilot/settings/heading-bug-deg",state.heading_deg);
     properties.setBoolValue("/sim/oneclickpilot/ready",true);
 }
@@ -39,8 +53,14 @@ void FlightSession::stop(){transport.shutdown();properties.setBoolValue("/sim/on
 void FlightSession::tick(double seconds) {
     if(!flight)return;
     transport.update(seconds);
-    properties.setBoolValue("/controls/gear/gear-down",true); // C172 fixed landing gear.
     auto value=[this](const char* path){return properties.getDoubleValue(path);};
+    const double parking=value("/controls/gear/brake-parking");
+    double leftMainContact = 0, rightMainContact = 0;
+    api.get(flight, "gear/unit[1]/WOW", &leftMainContact);
+    api.get(flight, "gear/unit[2]/WOW", &rightMainContact);
+    const bool mainGearOnGround = leftMainContact > .5 || rightMainContact > .5;
+    mixer.applyInstructorCommand(instructor.update(state, !parking, seconds, mainGearOnGround));
+    properties.setBoolValue("/controls/gear/gear-down",true); // C172 fixed landing gear.
     auto set=[this](const char* path,double v){api.set(flight,path,v);};
     const char* axes[]={"aileron","elevator","rudder","elevator-trim"};
     const char* fcs[]={"fcs/aileron-cmd-norm","fcs/elevator-cmd-norm","fcs/rudder-cmd-norm","fcs/pitch-trim-cmd-norm"};
@@ -50,13 +70,14 @@ void FlightSession::tick(double seconds) {
     set("fcs/flap-cmd-norm",std::clamp(value("/controls/flight/flaps"),0.0,1.0));
     set("fcs/throttle-cmd-norm",std::clamp(value("/controls/engines/current-engine/throttle"),0.0,1.0));
     set("fcs/mixture-cmd-norm",std::clamp(value("/controls/engines/current-engine/mixture"),0.0,1.0));
-    const double parking=value("/controls/gear/brake-parking");
+
     set("fcs/left-brake-cmd-norm",std::clamp(std::max(parking,value("/controls/gear/brake-left")),0.0,1.0));
     set("fcs/right-brake-cmd-norm",std::clamp(std::max(parking,value("/controls/gear/brake-right")),0.0,1.0));
     set("propulsion/magneto_cmd",value("/controls/switches/magnetos"));
     set("propulsion/starter_cmd",properties.getBoolValue("/controls/switches/master-bat") && properties.getBoolValue("/controls/switches/starter")?1:0);
     for(int tank=0;tank<2;++tank)set(("propulsion/tank["+std::to_string(tank)+"]/priority").c_str(),value(("/consumables/fuel/tank["+std::to_string(tank)+"]/selected").c_str())?1:0);
     if(api.step(flight,seconds)<0 || !api.state(flight,&state))throw std::runtime_error(api.error(flight));
+    validateFlightState(state);
     properties.setDoubleValue("/position/latitude-deg",state.latitude_deg);
     properties.setDoubleValue("/position/longitude-deg",state.longitude_deg);
     properties.setDoubleValue("/position/altitude-ft",state.altitude_ft);

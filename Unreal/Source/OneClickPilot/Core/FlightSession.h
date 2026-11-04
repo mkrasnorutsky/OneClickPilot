@@ -5,6 +5,9 @@
 #include "PropertyStore.h"
 #include "OneClickTransport.h"
 #include <string>
+#include "CircuitInstructor.hpp"
+#include "ControlMixer.hpp"
+
 namespace ocp {
 struct FlightAPI {
     decltype(&ocp_fdm_abi) abi=nullptr;
@@ -26,11 +29,14 @@ public:
     void tick(double seconds);
     void stop();
     bool command(const std::string&);
+    CircuitInstructor::Phase instructorPhase() const { return instructor.phase(); }
     PropertyStore properties;
+    ControlMixer mixer;
     OCPFlightState state{};
 private:
     FlightAPI api;
     OCPFlightHandle flight=nullptr;
     OneClickTransport transport;
+    CircuitInstructor instructor;
 };
 }

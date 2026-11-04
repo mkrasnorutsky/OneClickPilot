@@ -49,11 +49,11 @@ constexpr Switch Switches[] = {
 }
 
 struct OneClickTransport::State {
-    ocp::PropertyStore* root;
+    ocp::ControlMixer* root;
     Command command;
     int udp = -1;
 
-    State(ocp::PropertyStore* props, Command run) : root(props), command(std::move(run)) {}
+    State(ocp::ControlMixer* props, Command run) : root(props), command(std::move(run)) {}
     ~State() { stop(); }
 
     void stop() {
@@ -153,7 +153,7 @@ struct OneClickTransport::State {
     }
 };
 
-OneClickTransport::OneClickTransport(ocp::PropertyStore* root, Command command)
+OneClickTransport::OneClickTransport(ocp::ControlMixer* root, Command command)
     : state(new State(root, std::move(command))) {}
 OneClickTransport::~OneClickTransport() = default;
 
