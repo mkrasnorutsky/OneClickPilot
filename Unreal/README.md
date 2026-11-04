@@ -6,7 +6,7 @@ This is the new iOS application under construction. UE5 provides rendering and l
 
 - UE5 C++ project, mobile forward renderer, no touch controls, no HUD/debug text.
 - Single C172P-class model (`ocp172p`, project-authored), fixed 120Hz JSBSim integration and bounded catch-up.
-- Fly2Gether UDP 15501/TCP 15401, original twenty-field packet, cockpit commands and six camera offsets. The default FlightGear integration in Fly2Gether is unchanged.
+- Fly2Gether native X-Plane output on UDP 49000. Set the X-Plane host in Fly2Gether to the IP address of the machine running OneClickPilot. The receiver supports axes, parking brake, flap detents, selected light and battery commands, and cockpit views.
 - Independent property store; no FlightGear core, SimGear, OSG/osgVerse or ANGLE dependency in the new project.
 - Original prototype flat practice area, runway aligned approximately with EGKA 02, procedural panel with six provisional needles. These are a development scene, not the previous finished cockpit/scenery.
 - Dynamic C ABI: Unreal includes no JSBSim C++ headers and owns no JSBSim C++ objects. The shared framework contains JSBSim and its adapter. Mac slices are for the editor host; iOS is the product platform.
@@ -47,7 +47,7 @@ clone you intend to debug because Unreal's generated state is shared.
 
 ## Validation and remaining work
 
-Tests/check_frameworks.py verifies dynamic linkage, architectures and the eight C exports. Tests/check_controls.py builds/runs the session under sanitizers and checks the actual JSBSim control values. Tests/check_flight_dynamics.py runs the real C ABI against the Mac framework: C172 loading, flight response, engine, ground contact, invalid input, timestep bounds and lifetime. Tests/framework_smoke.cpp links/runs the Simulator framework. Tests/headless_flight.cpp runs the exact transport/session used by the UE pawn; existing Fly2Gether protocol/control checks and direct JSBSim control-property checks pass under ASan/UBSan.
+Tests/check_xplane_transport.cpp checks native UDP control packets and malformed packet rejection.
 
 Unreal Engine 5.7.4 builds with Xcode 26.6 on this Intel Mac. The Radeon RX 560 rendered the practice scene in Metal SM5 and passed the live Fly2Gether network checks. The signed iPhone 13 build rendered the scene and reported 862 RPM while parked. The signed bundle is 341,182,686 bytes. The packaging command writes the app to `~/Library/Developer/OneClickPilot/Unreal-5.7.4/Saved/StagedBuilds/IOS/OneClickPilot.app`. The map and materials were regenerated with 5.7.4 using the project bootstrap script.
 

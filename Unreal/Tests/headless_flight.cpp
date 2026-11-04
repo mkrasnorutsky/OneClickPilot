@@ -20,7 +20,7 @@ int main(int argc,char** argv){
         ocp::FlightSession session(api);session.start(argv[2]);
         std::signal(SIGTERM,stop);std::signal(SIGINT,stop);
         auto previous=std::chrono::steady_clock::now();
-        std::cout<<"READY JSBSim + Fly2Gether UDP15501 TCP15401"<<std::endl;
+        std::cout<<"READY JSBSim + Fly2Gether X-Plane UDP 49000"<<std::endl;
         while(!stopped){
             auto now=std::chrono::steady_clock::now();
             session.tick(std::chrono::duration<double>(now-previous).count());previous=now;
